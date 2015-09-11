@@ -571,16 +571,6 @@ instance
 class MakeQuery (q :: [(QueryPieceT, Symbol, *)]) where
     makeQuery :: Proxy q -> HList (QueryTypes q) -> [(T.Text, Maybe T.Text)]
 
-{-
-makeQueryString :: MakeQuery q => Proxy q -> HList (QueryTypes q) -> BS.ByteString
-makeQueryString proxy = BS.intercalate (B8.pack "&") . fmap joinParts . makeQuery proxy
-  where
-    joinParts :: (BS.ByteString, Maybe BS.ByteString) -> BS.ByteString
-    joinParts (x, y) = case y of
-        Nothing -> x
-        Just z -> BS.concat [x, B8.pack "=", z]
--}
-
 instance MakeQuery '[] where
     makeQuery _ _ = []
 
