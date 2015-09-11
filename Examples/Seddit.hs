@@ -1,6 +1,6 @@
 {-|
-Module      : 
-Description : 
+Module      : Examples.Seddit
+Description : Example HTTP server program.
 Copyright   : (c) Alexander Vieth, 2015
 Licence     : BSD3
 Maintainer  : aovieth@gmail.com
@@ -31,7 +31,7 @@ type SedditState = M.Map T.Text T.Text
 
 type Say = Root -/ "say"
 type SaySingleTitle = Root -/ "say" =/ '("title", T.Text)
-type SayManyTitles = Root -/ "say" +/ '("titles", T.Text)
+type SayManyTitles = Root -/ "say" =/ '("titles", [T.Text])
 
 type SayListQuery = Q -? '("count", Maybe Integer) -? '("offset", Maybe Integer)
 

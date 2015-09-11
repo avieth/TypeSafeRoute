@@ -87,23 +87,17 @@ data HTTPMethod where
 data RoutePieceT where
     RoutePieceSymbolT :: RoutePieceT
     RoutePieceSingleT :: RoutePieceT
-    RoutePieceManyT :: RoutePieceT
 
 data RoutePiece t where
     RoutePieceSymbol :: RoutePiece '(RoutePieceSymbolT, sym, Void)
     RoutePieceSingle :: t -> RoutePiece '(RoutePieceSingleT, sym, t)
-    RoutePieceMany :: [t] -> RoutePiece '(RoutePieceManyT, sym, t)
 
 type family RoutePieceOverlap piece route where
     RoutePieceOverlap piece '[] = False
     RoutePieceOverlap '(RoutePieceSymbolT, sym, s) rs = False
     RoutePieceOverlap '(RoutePieceSingleT, sym, s) ( '(RoutePieceSingleT, sym, t) ': rs ) = True
-    RoutePieceOverlap '(RoutePieceSingleT, sym, s) ( '(RoutePieceManyT, sym, t) ': rs) = True
     RoutePieceOverlap '(RoutePieceSingleT, sym, s) ( '(pieceType, sym', t) ': rs) = RoutePieceOverlap '(RoutePieceSingleT, sym, s) rs
 
-    RoutePieceOverlap '(RoutePieceManyT, sym, s) ( '(RoutePieceSingleT, sym, t) ': rs) = True
-    RoutePieceOverlap '(RoutePieceManyT, sym, s) ( '(RoutePieceManyT, sym, t) ': rs) = True
-    RoutePieceOverlap '(RoutePieceManyT, sym, s) ( '(pieceType, sym', t) ': rs) = RoutePieceOverlap '(RoutePieceManyT, sym, s) rs
 
 type family InvalidRoute route where
     InvalidRoute '[] = False
@@ -234,7 +228,6 @@ type family ResourceOverlap r rs where
 
 type family InRouteType (t :: Symbol) (ts :: [(RoutePieceT, Symbol, *)]) :: * where
     InRouteType sym ( '(RoutePieceSingleT, sym, t) ': ts ) = t
-    InRouteType sym ( '(RoutePieceManyT, sym, t) ': ts ) = [t]
     InRouteType sym ( s ': ts ) = InRouteType sym ts
     InRouteType sym '[] = Void
 
@@ -244,10 +237,6 @@ class InRoute (sym :: Symbol) (ts :: [(RoutePieceT, Symbol, *)]) where
 instance {-# OVERLAPPING #-} InRoute sym ( '(RoutePieceSingleT, sym, t) ': ts ) where
     inRouteLookup _ rd = case rd of
         Route (RoutePieceSingle x) _ -> x
-
-instance {-# OVERLAPPING #-}  InRoute sym ( '(RoutePieceManyT, sym, t) ': ts ) where
-    inRouteLookup _ rd = case rd of
-        Route (RoutePieceMany xs) _ -> xs
 
 instance {-# OVERLAPPABLE #-}
     ( InRoute sym ts
@@ -324,20 +313,6 @@ instance
                 Left _ -> Left ()
         [] -> Left ()
 
-instance
-    ( HTTPParameter t
-    , MatchRoute ts
-    ) => MatchRoute ( '(RoutePieceManyT, sym, t) ': ts )
-  where
-    matchRoute texts = case texts of
-        (text : rest) -> (\x y -> Route (RoutePieceMany x) y) <$> parsed <*> matchRoute rest
-          where
-            parser = PT.sepBy1 parseHttpParameter (PT.char ',')
-            parsed = case PT.parseOnly parser text of
-                Right x -> Right x
-                Left _ -> Left ()
-        [] -> Left ()
-
 class MatchQuery query where
     matchQuery :: QueryMap -> Either () (Query query)
 
@@ -408,6 +383,10 @@ instance HTTPParameter T.Text where
     parseHttpParameter = PT.takeWhile isAlphaNum
     printHttpParameter = id
 
+instance HTTPParameter t => HTTPParameter [t] where
+    parseHttpParameter = PT.sepBy parseHttpParameter (PT.char ',')
+    printHttpParameter = T.intercalate (T.pack ",") . fmap printHttpParameter
+
 -- Any HTTPBody must have an injection into ByteString, which we express as
 -- a parser rather than a straight up function.
 class HTTPBody t where
@@ -455,9 +434,6 @@ type route -/ symbol = Snoc '(RoutePieceSymbolT, symbol, Void) route
 
 infixl 8 =/
 type route =/ (term :: (Symbol, *)) = Snoc '(RoutePieceSingleT, TermSymbol term, TermType term) route
-
-infixl 8 +/
-type route +/ (term :: (Symbol, *)) = Snoc '(RoutePieceManyT, TermSymbol term, TermType term) route
 
 type Root = '[]
 
@@ -549,7 +525,6 @@ type family RouteTypes (r :: [(RoutePieceT, Symbol, *)]) :: [*] where
     RouteTypes '[] = '[]
     RouteTypes ( '(RoutePieceSymbolT, sym, Void) ': rest ) = RouteTypes rest
     RouteTypes ( '(RoutePieceSingleT, sym, t) ': rest ) = t ': RouteTypes rest
-    RouteTypes ( '(RoutePieceManyT, sym, t) ': rest ) = [t] ': RouteTypes rest
 
 type family QueryTypes (q :: [(QueryPieceT, Symbol, *)]) :: [*] where
     QueryTypes '[] = '[]
@@ -590,14 +565,6 @@ instance
   where
     makePath _ hlist = case hlist of
         HCons x rest -> printHttpParameter x : makePath (Proxy :: Proxy ts) rest
-
-instance
-    ( MakePath ts
-    , HTTPParameter t
-    ) => MakePath ( '(RoutePieceManyT, sym, t) ': ts )
-  where
-    makePath _ hlist = case hlist of
-        HCons xs rest -> T.intercalate "," (fmap printHttpParameter xs) : makePath (Proxy :: Proxy ts) rest
 
 -- Use renderQueryText from Network.HTTP.Types.URI to get a Builder for the
 -- actual text.
