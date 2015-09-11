@@ -40,7 +40,7 @@ type SedditRouter = '[
       '(POST, SaySingleTitle, Q, T.Text, ())
       -- Get something that was said.
     , '(GET,  SayManyTitles, Q, (), [Maybe T.Text])
-      -- List the titles things said.
+      -- List the titles of things said.
     , '(GET,  Say, SayListQuery, (), [T.Text])
     ]
 
