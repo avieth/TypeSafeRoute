@@ -58,7 +58,7 @@ type SedditState = M.Map T.Text T.Text
 To handle the first route, POSTs to `SaySingleTitle`, we need only to update
 the map held in some `TVar`. The type of our `HTTPHandler` indicates that the
 request is handled in `Kleisli IO`, which is just `IO` as an `Arrow`. It
-indicates as well that no query parameters are expected, and that an request
+indicates as well that no query parameters are expected, and that a request
 body of type `Text` is expected.
 
 ```Haskell
@@ -96,7 +96,7 @@ There's nothing new here. To get posts, we grab the titles, which is guaranteed
 to be a list of `T.Text`, and we respond with the associated messages. GHC
 checks that the response we give really is of type `[Maybe T.Text]`.
 
-The next handler will list message titles subjects to an offset and count.
+The next handler will list message titles subject to an offset and count.
 
 ```Haskell
 handleListSay
@@ -136,7 +136,7 @@ handlers tvar = AddHandler (handlePostSay tvar)
 ```
 
 The Wai `Application` is now had using `waiApplication` as defined in
-[HTTP](TypeSafeRoute/HTTP.hs).
+[HTTP](Network/TypeSafeRoute/HTTP.hs).
 
 ```Haskell
 application :: TVar SedditState -> Wai.Application
